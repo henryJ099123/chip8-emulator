@@ -1,7 +1,11 @@
+/**
+ * Author: Henry Jochaniewicz
+ * Date modified: December 30, 2025
+ **/
 #include <stdint.h>
 #include <unistd.h>
-#include "memory.h"
 
+#include "memory.h"
 
 void initialize_font(uint8_t* memory) {
     uint8_t font[] = {
@@ -23,8 +27,8 @@ void initialize_font(uint8_t* memory) {
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
-    for(int i = 0x50; i < 0x9f; i++) {
-        memory[i] = font[i - 0x50];
+    for(uint32_t i = 0; i < sizeof(font)/sizeof(font[0]); i++) {
+        memory[FONT_START_ADDRESS + i] = font[i];
     }
 }
 

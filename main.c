@@ -1,3 +1,7 @@
+/**
+ * Author: Henry Jochaniewicz
+ * Date modified: December 30, 2025
+ **/
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,12 +15,17 @@
 #include "interpret.h"
 #include "debug.h"
 
-#define FREQUENCY 500 // in Hz. Modifiable.
+#define FREQUENCY 400 // in Hz. Modifiable.
 #define CYCLE_TIME (1.0 / (FREQUENCY))
-#undef  SHIFT_OPTION
+
+#define SHIFT_OPTION
+#define JUMP_OFFSET_OPTION
+#define INDEX_ADD_OPTION
+#define INDEX_INC_MEMORY_OPTION
 
 int main(int argc, char* argv[]) {
     int debug = 0;
+    srand(time(NULL));
     
     if(argc != 2) {
         fprintf(stderr, "Usage: ./chip8 <file>\n");
@@ -88,18 +97,20 @@ int main(int argc, char* argv[]) {
     int instr_count = 0;
     for(;;) {
         if((double) (clock() - clock_time) / CLOCKS_PER_SEC < CYCLE_TIME) continue;
+        clock_time = clock();
         if(!handle_event()) break;
         uint16_t instruction = fetch(&interpreter);
         if(decode(&interpreter, instruction)) {
             draw_display(renderer, interpreter.display);
         }
+        if(interpreter.delay_timer != 0) interpreter.delay_timer--;
+        if(interpreter.sound_timer != 0) interpreter.sound_timer--;
         instr_count++;
         if((clock() - second_counter) / CLOCKS_PER_SEC > 1) {
             fprintf(stdout, "Instruction count: %d\n", instr_count);
             instr_count = 0;
             second_counter = clock();
         }
-        clock_time = clock();
     }
 
     destroy_screen(window, renderer);

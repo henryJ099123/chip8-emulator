@@ -1,4 +1,9 @@
+/**
+ * Author: Henry Jochaniewicz
+ * Date modified: December 30, 2025
+ **/
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_keyboard.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -7,6 +12,39 @@
 #include "debug.h"
 
 #define FACTOR 10
+
+/**
+ * Array to define the scancodes for 0 - F.
+ * For the following structure (keypad):
+ *  1 2 3 C
+ *  4 5 6 D
+ *  7 8 9 E
+ *  A 0 B F
+ * Made these the following keys on a keyboard:
+ *  1 2 3 4
+ *  q w e r
+ *  a s d f
+ *  z x c v
+ * This is independent of QWERTY/AZERTY/etc.
+ **/
+static SDL_Scancode codes[] = {
+    SDL_SCANCODE_X, // 0.
+    SDL_SCANCODE_1, // 1.
+    SDL_SCANCODE_2, // 2.
+    SDL_SCANCODE_3, // 3.
+    SDL_SCANCODE_Q, // 4.
+    SDL_SCANCODE_W, // 5.
+    SDL_SCANCODE_E, // 6.
+    SDL_SCANCODE_A, // 7.
+    SDL_SCANCODE_S, // 8.
+    SDL_SCANCODE_D, // 9.
+    SDL_SCANCODE_Z, // A.
+    SDL_SCANCODE_C, // B.
+    SDL_SCANCODE_4, // C.
+    SDL_SCANCODE_R, // D.
+    SDL_SCANCODE_F, // E.
+    SDL_SCANCODE_V  // F.
+};
 
 bool init_screen(SDL_Window** window, SDL_Renderer** renderer) {
     if(!SDL_Init(SDL_INIT_VIDEO)) {
@@ -41,6 +79,23 @@ bool handle_event() {
     }
 
     return true;
+}
+
+bool is_key_pressed(uint8_t num) {
+    if(num > 0xF) return false;
+    SDL_Scancode code = codes[num];
+    int length = 0;
+    const bool* keys = SDL_GetKeyboardState(&length);
+    return keys[code];
+}
+
+bool any_key_pressed() {
+    int length = 0;
+    const bool* keys = SDL_GetKeyboardState(&length);
+    for(int i = 0; i < 0xF; i++) {
+        if(keys[i]) return true;
+    }
+    return false;
 }
 
 void draw_display(SDL_Renderer* renderer, bool display[][WIDTH]) {

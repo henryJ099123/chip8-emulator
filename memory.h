@@ -1,3 +1,7 @@
+/**
+ * Author: Henry Jochaniewicz
+ * Date modified: December 30, 2025
+ **/
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 
@@ -8,6 +12,7 @@
 #define STACK_SIZE 1024
 #define REGISTER_SIZE 16
 #define START_ADDRESS 0x200
+#define FONT_START_ADDRESS 0x50
 
 #define STACK_PUSH(stack, value) \
     ((stack)->data[(stack)->pointer++] = (value))

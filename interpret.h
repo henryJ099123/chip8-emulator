@@ -1,3 +1,7 @@
+/**
+ * Author: Henry Jochaniewicz
+ * Date modified: December 30, 2025
+ **/
 #ifndef __INTERPRET_H__
 #define __INTERPRET_H__
 
