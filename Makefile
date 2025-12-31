@@ -1,21 +1,25 @@
 CC= clang
-IFLAGS= -I /opt/homebrew/include
+IFLAGS= -I /opt/homebrew/include -I include/
 LFLAGS= -L /opt/homebrew/lib -lSDL3
 CFLAGS= -Wall -Wextra
-SOURCES= main.c memory.c debug.c display.c interpret.c
-OBJECTS= $(SOURCES:.c=.o)
+SOURCES= chip8.c memory.c debug.c display.c interpret.c
+EXEC= chip8
+OBJECTS= $(SOURCES:%.c=build/%.o)
 
-all: main
+all: $(EXEC)
 
-main: $(OBJECTS)
+$(EXEC): $(OBJECTS)
 	$(CC) $(IFLAGS) $(LFLAGS) $(CFLAGS) $^ -o $@
 
-%.o: %.c %.h
+build/%.o: src/%.c include/%.h | build/
 	$(CC) $(CFLAGS) $(IFLAGS) $< -c -o $@
 
-%.o: %.c
+build/%.o: src/%.c | build/
 	$(CC) $(CFLAGS) $(IFLAGS) $< -c -o $@
+
+build/:
+	mkdir -p build
 
 clean:
-	rm -f $(OBJECTS)
 	rm -f main
+	rm -rf build
