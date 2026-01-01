@@ -5,9 +5,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "settings.h"
 #include "memory.h"
 #include "interpret.h"
 #include "display.h"
+
+#define NIBBLE_1_BYTE(byte) (((byte) >> 4) & 0x0F)
+#define NIBBLE_2_BYTE(byte) ((byte) & 0x0F)
 
 #define NIBBLE_1(two_bytes) (((two_bytes) >> 12) & 0x000F)
 #define NIBBLE_2(two_bytes) (((two_bytes) >> 8)  & 0x000F)
@@ -29,11 +33,15 @@ uint16_t fetch(struct interpreter* interpreter) {
     return (b1 << 8) | b2;
 }
 
+void update_timers(struct interpreter* interpreter, struct screen* screen) {
+    if(interpreter->delay_timer != 0) interpreter->delay_timer--;
+    if(interpreter->sound_timer != 0) interpreter->sound_timer--;
+    play_sound(screen->stream, interpreter->sound_timer);
+}
 
 // returns the value that VF register should be set to.
-int draw_sprite(struct interpreter* interpreter, uint8_t x, uint8_t y, uint8_t h) {
-    int min_height = h < HEIGHT - y ? h : HEIGHT - y;
-
+static uint8_t draw_sprite(struct interpreter* interpreter, uint8_t x, uint8_t y, uint8_t h) {
+    uint8_t min_height = h < HEIGHT - y ? h : HEIGHT - y;
     uint8_t* sprite_start = interpreter->memory + interpreter->index_register;
     int set_vf_value = 0;
     for(int j = 0; j < min_height; j++) {
@@ -46,7 +54,6 @@ int draw_sprite(struct interpreter* interpreter, uint8_t x, uint8_t y, uint8_t h
             interpreter->display[j + y][x + i] = !interpreter->display[j + y][x + i];
         }
     }
-
     return set_vf_value;
 }
 
@@ -54,93 +61,94 @@ int draw_sprite(struct interpreter* interpreter, uint8_t x, uint8_t y, uint8_t h
 bool decode(struct interpreter* interpreter, uint16_t instruction) {
     bool refresh = false;
     switch(NIBBLE_1(instruction)) {
-        // clear screen or return from subroutine.
         case 0x0:
+            // 0x00E0: clear screen.
             if(AFTER_NIBBLE_1(instruction) == 0x0E0) {
                 clear_display(interpreter->display);
-
+                refresh = true;
+            // 0x00EE: Return, i.e. PC <- STACK_POP
             } else if(AFTER_NIBBLE_1(instruction) == 0x0EE) {
                 interpreter->program_counter = STACK_POP(&interpreter->stack);
             }
             break;
-        // jump.
+        // 0x1NNN: jump, i.e. PC <- NNN
         case 0x1:
             interpreter->program_counter = AFTER_NIBBLE_1(instruction);
             break;
-        // subroutine / call.
+        // 0x2NNN: subroutine / call, i.e. STACK_PUSH(PC), PC <- NNN
         case 0x2:
             STACK_PUSH(&interpreter->stack, interpreter->program_counter);
             interpreter->program_counter = AFTER_NIBBLE_1(instruction);
             break;
-        // conditional jump, eq. to immediate
+        // 0x3XNN: skip if equal, i.e. if(VX == NN) PC+=2
         case 0x3:
             if(interpreter->registers[NIBBLE_2(instruction)] == BYTE_2(instruction)) {
                 interpreter->program_counter += 2; // skip next instruction.
             }
             break;
-        // conditional jump, neq. to immediate
+        // 0x3XNN: skip if not equal, i.e. if(VX != NN) PC+=2
         case 0x4:
             if(interpreter->registers[NIBBLE_2(instruction)] != BYTE_2(instruction)) {
                 interpreter->program_counter += 2; // skip next instruction.
             }
             break;
-        // conditional jump, eq. to register 
+        // 0x5XY0: skip if equal (registers), i.e. if(VX == VY) PC+=2
         case 0x5:
             if(interpreter->registers[NIBBLE_2(instruction)] ==
                     interpreter->registers[NIBBLE_3(instruction)]) {
                 interpreter->program_counter += 2; // skip next instruction.
             }
             break;
-        // V[N2] <- N3:N4
+        // 0x6XNN: assignment with immediate, i.e. V6 <- NN
         case 0x6:
             interpreter->registers[NIBBLE_2(instruction)] = BYTE_2(instruction);
             break;
-        // V[N2] <- V[N2] + N3:N4
+        // 0x7XNN: addition with immediate, i.e. VX <- VX + NN
         case 0x7:
             interpreter->registers[NIBBLE_2(instruction)] += BYTE_2(instruction);
             break;
-        // various arithmetic, decided by the last nibble of opcode.
+        // various arithmetic between registers.
         case 0x8: {
             switch(NIBBLE_4(instruction)) {
-                // Assignment: V[N3] <- V[N4]
+                // 0x8XY0: assignment between registers, i.e. VX <- VY
                 case 0x0:
                     interpreter->registers[NIBBLE_2(instruction)] =
                         interpreter->registers[NIBBLE_3(instruction)];
                     break;
-                // Or: V[N3] <- V[N3] | V[N4]
+                // 0x8XY1: bitwise or, i.e. VX <- VX | VY
                 case 0x1:
                     interpreter->registers[NIBBLE_2(instruction)] |=
                         interpreter->registers[NIBBLE_3(instruction)];
                     break;
-                // And: V[N3] <- V[N3] & V[N4]
+                // 0x8XY2: bitwise and, i.e. VX <- VX & VY
                 case 0x2:
                     interpreter->registers[NIBBLE_2(instruction)] &=
                         interpreter->registers[NIBBLE_3(instruction)];
                     break;
-                // Xor: V[N3] <- V[N3] ^ V[N4]
+                // 0x8XY3: bitwise xor, i.e. VX <- VX ^ VY
                 case 0x3:
                     interpreter->registers[NIBBLE_2(instruction)] ^=
                         interpreter->registers[NIBBLE_3(instruction)];
                     break;
-                // Add: V[N3] <- V[N3] + V[N4]. Overflow sets VF to 1, else 0.
+                // 0x8XY4: addition, i.e. VX <- VX + VY, VF = carry
                 case 0x4: {
                     uint8_t first = interpreter->registers[NIBBLE_2(instruction)];
                     uint8_t second = interpreter->registers[NIBBLE_3(instruction)];
-                    interpreter->registers[0xF] = first > UINT8_MAX - second ? 1 : 0;
-                    interpreter->registers[NIBBLE_3(instruction)] += second;
+                    interpreter->registers[0xF] = first > UINT8_MAX - second;
+                    interpreter->registers[NIBBLE_2(instruction)] += second;
                     break;
                 }
-                // Add: V[N3] <- V[N3] + V[N4]. Underflow sets VF to 0, else 1.
+                // 0x8XY5: subtraction, i.e. VX <- VX - VY, VF = no borrow
                 case 0x5: {
                     uint8_t first = interpreter->registers[NIBBLE_2(instruction)];
                     uint8_t second = interpreter->registers[NIBBLE_3(instruction)];
-                    interpreter->registers[0xF] = first > second ? 1 : 0;
-                    interpreter->registers[NIBBLE_3(instruction)] = first - second;
+                    interpreter->registers[0xF] = first > second;
+                    interpreter->registers[NIBBLE_2(instruction)] = first - second;
                     break;
                 }
-                // Shift: An ambiguous instruction.
-                // Optional Step: V[N3] <- V[N4]
-                // The same: V[N3] -> V[N3] >> 1
+                // 0x8XY6 shift right: An ambiguous instruction.
+                // the ambiguous bit: VX <- VY
+                // The same: VX -> VX >> 1
                 // VF is set to the shifted out bit.
                 case 0x6: {
 #ifdef SHIFT_OPTION
@@ -152,9 +160,17 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                     interpreter->registers[NIBBLE_2(instruction)] >>= 1;
                     break;
                 }
-                // Shift: An ambiguous instruction.
-                // Optional Step: V[N3] <- V[N4]
-                // The same: V[N3] -> V[N3] << 1
+                // 0x8XY7: subtraction reverse, i.e. VX <- VY - VX, VF = no borrow
+                case 0x7: {
+                    uint8_t first = interpreter->registers[NIBBLE_3(instruction)];
+                    uint8_t second = interpreter->registers[NIBBLE_2(instruction)];
+                    interpreter->registers[0xF] = first > second;
+                    interpreter->registers[NIBBLE_3(instruction)] = first - second;
+                    break;
+                }
+                // 0x8XY6 shift left: An ambiguous instruction.
+                // the ambiguous bit: VX <- VY
+                // The same: VX -> VX << 1
                 // VF is set to the shifted out bit.
                 case 0xE: {
 #ifdef SHIFT_OPTION
@@ -171,20 +187,20 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                     break;
             }
         }
-        // conditional jump, neq. to register 
+        // 0x9XY0: skip if not equal (registers), i.e. if(VX != VY) PC+=2
         case 0x9:
             if(interpreter->registers[NIBBLE_2(instruction)] != 
                     interpreter->registers[NIBBLE_3(instruction)]) {
                 interpreter->program_counter += 2; // skip next instruction.
             }
             break;
-        // Set index: I <- N2:N4
+        // 0xANNN: assignment of index register, i.e. I <- NNN
         case 0xA:
             interpreter->index_register = AFTER_NIBBLE_1(instruction);
             break;
-        // Jump with offset: Ambiguous instruction.
-        // Either PC <- V0 + N2:N4, or
-        // PC <- V[N2] + N2:N4. This is silly. e.g. B220 will set PC <- V2 + 220.
+        // 0xBXNN jump with offset: ambiguous instruction.
+        // Either PC <- V0 + XNN, or
+        // PC <- VX + XNN. This is silly. e.g. B220 will set PC <- V2 + 220.
         case 0xB:
 #ifdef JUMP_OFFSET_OPTION
             interpreter->program_counter = interpreter->registers[0x0] + AFTER_NIBBLE_1(instruction);
@@ -192,9 +208,14 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
             interpreter->program_counter = interpreter->registers[NIBBLE_2(instruction)] + AFTER_NIBBLE_1(instruction);
 #endif
             break;
-        // random: V[N2] <- random_number & N3:N4
+        // 0xCXNN: random, i.e. VX <- rand[0, 255] & NN
         case 0xC:
-            interpreter->registers[NIBBLE_2(instruction)] = rand() & BYTE_2(instruction); 
+            interpreter->registers[NIBBLE_2(instruction)] = (rand() & 0xFF) & BYTE_2(instruction); 
+            break;
+        // 0xDXYN: display an N-byte sprite starting at M[I] at position (VX, VY).
+        // This display is an XOR with the existing bit of the screen.
+        // VF = collision, i.e. whether a pixel is erased / st off..
+        // Only wraps around if the WHOLE sprite is off-screen.
         case 0xD: {
             uint8_t x = interpreter->registers[NIBBLE_2(instruction)] & (WIDTH - 1);
             uint8_t y = interpreter->registers[NIBBLE_3(instruction)] & (HEIGHT - 1);
@@ -206,9 +227,11 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
         }
         // key: skip next instruction if key in V[N2] is being pressed, i.e. poll for input.
         case 0xE:
+            // 0xEX9E: skip if key pressed, i.e. if(key_pressed(VX)) PC+=2
             if(BYTE_2(instruction) == 0x9E &&
                     is_key_pressed(interpreter->registers[NIBBLE_2(instruction)])) {
                 interpreter->program_counter += 2;
+            // 0xEX9E: skip if not key pressed, i.e. if(!key_pressed(VX)) PC+=2
             } else if(BYTE_2(instruction) == 0xA1 &&
                     !is_key_pressed(interpreter->registers[NIBBLE_2(instruction)])) {
                 interpreter->program_counter += 2;
@@ -219,15 +242,15 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
         /**
          * wildcards.
          * FX07: set VX <- delay timer
+         * FX0A: blocking instruction that waits for any key, whose value is put into VX.
+         *       note that this does not stop execution entirely. timers still decrease.
          * FX15: delay timer <- VX 
          * FX18: sound timer <- VX 
          * FX1E: I <- I + VX, where it is ambiguous if VF is set on overflow.
-         * FX0A: blocking instruction that waits for any key, whose value is put into VX.
-         *       note that this does not stop execution entirely. timers still decrease.
-         * FX29: font character: I <- address of hexadecimal character in VX
+         * FX29: font character: I <- address of character VX in memory
          * FX33: Binary-coded decimal conversion.
          *       Takes number in VX (one byte) and converts it to three decimal digits,
-         *       stores these at M[I], M[I+1], and M[I+2].
+         *       stores these at M[I], M[I+1], and M[I+2] for 100s, 10s, 1s respectively.
          * FX55: store registers subsequently to memory, where M[I + i] <- Vi.
          * FX65: load registers, where Vi <- M[I + i].
          *       For these instructions, it is ambiguous whether I is incremented or not.
@@ -238,6 +261,15 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                 case 0x07:
                     interpreter->registers[NIBBLE_2(instruction)] = interpreter->delay_timer;
                     break;
+                case 0x0A: {
+                    uint8_t response;
+                    if((response = any_key_pressed()) == 0xFF) {
+                        interpreter->program_counter -= 2;
+                    } else {
+                        interpreter->registers[NIBBLE_2(instruction)] = response;
+                    }
+                    break;
+                }
                 case 0x15:
                     interpreter->delay_timer = interpreter->registers[NIBBLE_2(instruction)];
                     break;
@@ -252,14 +284,10 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
 #endif
                     interpreter->index_register += interpreter->registers[NIBBLE_2(instruction)];
                     break;
-                case 0x0A:
-                    if(!any_key_pressed()) {
-                        interpreter->program_counter -= 2;
-                    }
-                    break;
                 // this looks at the lower nibble of VX for the character.
                 case 0x29: {
-                    uint8_t character = NIBBLE_2(interpreter->registers[NIBBLE_2(instruction)]);
+                    uint8_t character = NIBBLE_2_BYTE(
+                            interpreter->registers[NIBBLE_2(instruction)]);
                     interpreter->index_register = FONT_START_ADDRESS + character * 5;
                     break;
                 }
@@ -274,17 +302,17 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                     break;
                 }
                 case 0x55: {
-                    for(int i = 0; i < REGISTER_SIZE; i++) {
+                    for(uint8_t i = 0; i <= NIBBLE_2(instruction); i++) {
                         interpreter->memory[interpreter->index_register + i] =
                             interpreter->registers[i];
                     }
 #ifdef INDEX_INC_MEMORY_OPTION
-                    interpreter->index_register += REGISTER_SIZE;
+                    interpreter->index_register += NIBBLE_2(instruction);
 #endif
                     break;
                 }
                 case 0x65:
-                    for(int i = 0; i < REGISTER_SIZE; i++) {
+                    for(uint8_t i = 0; i <= NIBBLE_2(instruction); i++) {
                         interpreter->registers[i] =
                             interpreter->memory[interpreter->index_register + i];
                     }

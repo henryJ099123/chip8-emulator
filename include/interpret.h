@@ -7,10 +7,9 @@
 
 #include <stdbool.h>
 
+#include "settings.h"
 #include "memory.h"
-
-#define WIDTH 64
-#define HEIGHT 32
+#include "display.h"
 
 struct interpreter {
     uint8_t memory[MEMORY_SIZE];
@@ -26,5 +25,6 @@ struct interpreter {
 
 uint16_t fetch(struct interpreter* interpreter);
 bool decode(struct interpreter* interpreter, uint16_t instruction);
+void update_timers(struct interpreter* interpreter, struct screen* screen);
 
 #endif

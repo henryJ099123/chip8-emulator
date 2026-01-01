@@ -9,14 +9,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "interpret.h"
+#include "settings.h"
 
-bool init_screen(SDL_Window** window, SDL_Renderer** renderer);
+struct screen {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    SDL_AudioStream* stream;
+};
+
+bool init_screen(struct screen* screen);
 bool handle_event(void);
 bool is_key_pressed(uint8_t num);
-bool any_key_pressed();
+uint8_t any_key_pressed();
 void draw_display(SDL_Renderer* renderer, bool display[][WIDTH]);
 void clear_display(bool display[][WIDTH]);
-void destroy_screen(SDL_Window* window, SDL_Renderer* renderer);
+void destroy_screen(struct screen* screen);
+void play_sound(SDL_AudioStream* stream, uint8_t timer_value);
 
 #endif
