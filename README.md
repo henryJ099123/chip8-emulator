@@ -2,7 +2,7 @@
 
 Henry Jochaniewicz
 
-[!Title](title.png)
+![Title](title.png)
 
 ## Description
 
@@ -73,7 +73,12 @@ To run in debug mode, add the `-g` flag *before the rom*:
 When running a ROM, hit the **escape key** to end the emulation.
 
 To make sure this works, I recommend downloading an IBM Logo ROM, which for
-legal reasons is not included here.
+legal reasons is not included here. You can also run the home page ROM
+to make sure it works:
+
+```sh
+./chip8 examples/home.ch8
+```
 
 ## Debugger
 
@@ -106,7 +111,7 @@ stored with the key being pressed down. If multiple keys are being
 pressed down, `VX` will store the least key in terms of value.
 - If the emulator tries to run an instruction not recognized, it will
 print the instruction to the console with the message `"Unknown instruction
-0xNNNN."`.
+NNNN."`.
 
 ## TODO
 
