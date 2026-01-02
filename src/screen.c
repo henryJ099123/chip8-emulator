@@ -1,6 +1,6 @@
 /**
  * Author: Henry Jochaniewicz
- * Date modified: December 30, 2025
+ * Date modified: 01/02/26
  **/
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_keyboard.h>
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "display.h"
+#include "screen.h"
 #include "interpret.h"
 #include "debug.h"
 
@@ -63,8 +63,7 @@ void SDLCALL callback(void* userdata, SDL_AudioStream* stream,
         float samples[SAMPLE_SIZE];
         const int total = additional_amount < SAMPLE_SIZE ? additional_amount : SAMPLE_SIZE;
         for(int i = 0; i < total; i++) {
-            const int freq = 220;
-            const float phase = current_sample * freq / 8000.0f;
+            const float phase = current_sample * SOUND_FREQUENCY / 8000.0f;
             samples[i] = SDL_sinf(phase * 2 * SDL_PI_F);
             current_sample++;
         }
@@ -143,10 +142,15 @@ uint8_t any_key_pressed(void) {
 }
 
 void draw_display(SDL_Renderer* renderer, bool display[][WIDTH]) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+#define BYTE_1(color) (((color) >> 16)& 0x0000FF)
+#define BYTE_2(color) (((color) >> 8) & 0x0000FF)
+#define BYTE_3(color) ((color) & 0x0000FF)
+    SDL_SetRenderDrawColor(renderer, BYTE_1(OFF_COLOR), 
+            BYTE_2(OFF_COLOR), BYTE_3(OFF_COLOR), SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
 
-    if(!SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, SDL_ALPHA_OPAQUE)) {
+    if(!SDL_SetRenderDrawColor(renderer, BYTE_1(ON_COLOR), 
+                BYTE_2(ON_COLOR), BYTE_3(ON_COLOR), SDL_ALPHA_OPAQUE)) {
         fprintf(stdout, "FAILURE: %s\n", SDL_GetError());
     }
     SDL_FRect r = {0};
@@ -167,6 +171,9 @@ void draw_display(SDL_Renderer* renderer, bool display[][WIDTH]) {
     if(!SDL_RenderPresent(renderer)) {
         fprintf(stderr, "FAILURE: %s\n", SDL_GetError());
     }
+#undef BYTE_1
+#undef BYTE_2
+#undef BYTE_3
 }
 
 void clear_display(bool display[][WIDTH]) {

@@ -2,4 +2,4 @@
 *.o
 chip8
 .DS_Store
-
+notes/

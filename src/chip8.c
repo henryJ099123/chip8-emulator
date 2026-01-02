@@ -12,7 +12,7 @@
 
 #include "settings.h"
 #include "memory.h"
-#include "display.h"
+#include "screen.h"
 #include "interpret.h"
 #include "debug.h"
 

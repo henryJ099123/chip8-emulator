@@ -8,7 +8,7 @@
 #include "settings.h"
 #include "debug.h"
 #include "memory.h"
-#include "display.h"
+#include "screen.h"
 
 void dump_memory(FILE* fp, uint8_t* memory) {
     fprintf(fp, "\t== MEMORY ==");

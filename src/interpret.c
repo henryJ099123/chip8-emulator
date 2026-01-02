@@ -1,6 +1,6 @@
 /**
  * Author: Henry Jochaniewicz
- * Date modified: 01/01/26
+ * Date modified: 01/02/26
  **/
 #include <stdbool.h>
 #include <stdlib.h>
@@ -8,7 +8,7 @@
 #include "settings.h"
 #include "memory.h"
 #include "interpret.h"
-#include "display.h"
+#include "screen.h"
 
 #define NIBBLE_1_BYTE(byte) (((byte) >> 4) & 0x0F)
 #define NIBBLE_2_BYTE(byte) ((byte) & 0x0F)
@@ -333,4 +333,20 @@ void decode(struct interpreter* interpreter, uint16_t instruction) {
             break;
     }
 }
+
+#undef NIBBLE_1_BYTE
+#undef NIBBLE_2_BYTE
+
+#undef NIBBLE_1
+#undef NIBBLE_2
+#undef NIBBLE_3
+#undef NIBBLE_4
+#undef BYTE_1
+#undef BYTE_2
+#undef AFTER_NIBBLE_1
+
+#undef GET_BIT
+#undef SET_BIT
+#undef CLEAR_BIT
+#undef TOGGLE_BIT
 

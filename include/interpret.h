@@ -9,7 +9,7 @@
 
 #include "settings.h"
 #include "memory.h"
-#include "display.h"
+#include "screen.h"
 
 struct interpreter {
     uint8_t memory[MEMORY_SIZE];

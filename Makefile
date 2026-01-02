@@ -3,7 +3,7 @@ IFLAGS= -I /opt/homebrew/include -I include/
 LFLAGS= -L /opt/homebrew/lib -lSDL3
 CFLAGS= -Wall -Wextra -Wpedantic
 COMMON= include/settings.h
-SOURCES= chip8.c memory.c debug.c display.c interpret.c
+SOURCES= chip8.c memory.c debug.c screen.c interpret.c
 EXEC= chip8
 OBJECTS= $(SOURCES:%.c=build/%.o)
 
