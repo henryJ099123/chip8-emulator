@@ -11,3 +11,7 @@ Henry Jochaniewicz
 - have the frequency be configurable
 - Update the README
 
+## Quirks
+
+- For all key instructions from registers, it simply reads the lower nibble
+(in terms of endianness). Some online things do not do this.

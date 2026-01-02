@@ -14,8 +14,8 @@
 #define HEIGHT 32
 
 /* Configurable settings. */
-#define SHIFT_OPTION
-#define JUMP_OFFSET_OPTION
+#undef  SHIFT_OPTION
+#undef  JUMP_OFFSET_OPTION
 #undef  INDEX_ADD_OOB_OPTION
 #undef  LOAD_STORE_MODIFY_INDEX_OPTION
 

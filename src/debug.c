@@ -12,12 +12,12 @@
 
 void dump_memory(FILE* fp, uint8_t* memory) {
     fprintf(fp, "\t== MEMORY ==");
-    for(uint32_t i = 0; i < MEMORY_SIZE; i++) {
+    for(uint32_t i = 0; i < MEMORY_SIZE; i+= 2) {
         if((i & 0xF) == 0) {
             fprintf(fp, "\n%4d (%03x).", i, i);
         }
 
-        fprintf(fp, " %02X", memory[i]);
+        fprintf(fp, " %02X%02X", memory[i], memory[i+1]);
     }
     fprintf(fp, "\n\t== MEMORY END ==\n");
 }

@@ -161,10 +161,10 @@ void decode(struct interpreter* interpreter, uint16_t instruction) {
                 }
                 // 0x8XY7: subtraction reverse, i.e. VX <- VY - VX, VF = no borrow
                 case 0x7: {
-                    uint8_t first = interpreter->registers[NIBBLE_3(instruction)];
-                    uint8_t second = interpreter->registers[NIBBLE_2(instruction)];
-                    interpreter->registers[NIBBLE_3(instruction)] = first - second;
-                    interpreter->registers[0xF] = first > second;
+                    uint8_t first = interpreter->registers[NIBBLE_2(instruction)];
+                    uint8_t second = interpreter->registers[NIBBLE_3(instruction)];
+                    interpreter->registers[NIBBLE_2(instruction)] = second - first;
+                    interpreter->registers[0xF] = second > first;
                     break;
                 }
                 // 0x8XY6 shift left: An ambiguous instruction.
@@ -204,9 +204,9 @@ void decode(struct interpreter* interpreter, uint16_t instruction) {
         // PC <- VX + XNN. This is silly. e.g. B220 will set PC <- V2 + 220.
         case 0xB:
 #ifdef JUMP_OFFSET_OPTION
-            interpreter->program_counter = interpreter->registers[0x0] + AFTER_NIBBLE_1(instruction);
-#else
             interpreter->program_counter = interpreter->registers[NIBBLE_2(instruction)] + AFTER_NIBBLE_1(instruction);
+#else
+            interpreter->program_counter = interpreter->registers[0x0] + AFTER_NIBBLE_1(instruction);
 #endif
             break;
         // 0xCXNN: random, i.e. VX <- rand[0, 255] & NN
@@ -238,7 +238,7 @@ void decode(struct interpreter* interpreter, uint16_t instruction) {
                     !is_key_pressed(NIBBLE_2_BYTE(
                     interpreter->registers[NIBBLE_2(instruction)]))) {
                 interpreter->program_counter += 2;
-            } else {
+            } else if(BYTE_2(instruction) != 0x9E && BYTE_2(instruction) != 0xA1) {
                 fprintf(stderr, "Unknown instruction %4X.\n", instruction);
             }
             break;
@@ -333,3 +333,4 @@ void decode(struct interpreter* interpreter, uint16_t instruction) {
             break;
     }
 }
+
