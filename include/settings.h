@@ -1,6 +1,6 @@
 /**
  * Author: Henry Jochaniewicz
- * Date modified: December 31, 2025
+ * Date modified: 01/01/26
  **/
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
@@ -16,7 +16,7 @@
 /* Configurable settings. */
 #define SHIFT_OPTION
 #define JUMP_OFFSET_OPTION
-#undef  INDEX_ADD_OPTION
-#undef  INDEX_INC_MEMORY_OPTION
+#undef  INDEX_ADD_OOB_OPTION
+#undef  LOAD_STORE_MODIFY_INDEX_OPTION
 
 #endif

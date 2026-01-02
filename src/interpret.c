@@ -1,6 +1,6 @@
 /**
  * Author: Henry Jochaniewicz
- * Date modified: December 30, 2025
+ * Date modified: 01/01/26
  **/
 #include <stdbool.h>
 #include <stdlib.h>
@@ -33,9 +33,10 @@ uint16_t fetch(struct interpreter* interpreter) {
     return (b1 << 8) | b2;
 }
 
-void update_timers(struct interpreter* interpreter, struct screen* screen) {
+void update_internals(struct interpreter* interpreter, struct screen* screen) {
     if(interpreter->delay_timer != 0) interpreter->delay_timer--;
     if(interpreter->sound_timer != 0) interpreter->sound_timer--;
+    draw_display(screen->renderer, interpreter->display);
     play_sound(screen->stream, interpreter->sound_timer);
 }
 
@@ -57,15 +58,12 @@ static uint8_t draw_sprite(struct interpreter* interpreter, uint8_t x, uint8_t y
     return set_vf_value;
 }
 
-// returns whether or not a screen refresh should occur.
-bool decode(struct interpreter* interpreter, uint16_t instruction) {
-    bool refresh = false;
+void decode(struct interpreter* interpreter, uint16_t instruction) {
     switch(NIBBLE_1(instruction)) {
         case 0x0:
             // 0x00E0: clear screen.
             if(AFTER_NIBBLE_1(instruction) == 0x0E0) {
                 clear_display(interpreter->display);
-                refresh = true;
             // 0x00EE: Return, i.e. PC <- STACK_POP
             } else if(AFTER_NIBBLE_1(instruction) == 0x0EE) {
                 interpreter->program_counter = STACK_POP(&interpreter->stack);
@@ -134,16 +132,16 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                 case 0x4: {
                     uint8_t first = interpreter->registers[NIBBLE_2(instruction)];
                     uint8_t second = interpreter->registers[NIBBLE_3(instruction)];
-                    interpreter->registers[0xF] = first > UINT8_MAX - second;
                     interpreter->registers[NIBBLE_2(instruction)] += second;
+                    interpreter->registers[0xF] = first > UINT8_MAX - second;
                     break;
                 }
                 // 0x8XY5: subtraction, i.e. VX <- VX - VY, VF = no borrow
                 case 0x5: {
                     uint8_t first = interpreter->registers[NIBBLE_2(instruction)];
                     uint8_t second = interpreter->registers[NIBBLE_3(instruction)];
-                    interpreter->registers[0xF] = first > second;
                     interpreter->registers[NIBBLE_2(instruction)] = first - second;
+                    interpreter->registers[0xF] = first > second;
                     break;
                 }
                 // 0x8XY6 shift right: An ambiguous instruction.
@@ -155,17 +153,18 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                     interpreter->registers[NIBBLE_2(instruction)] =
                         interpreter->registers[NIBBLE_3(instruction)];
 #endif
-                    interpreter->registers[0xF] = GET_BIT(
-                            interpreter->registers[NIBBLE_2(instruction)], 0);
+                    uint8_t bit = GET_BIT(interpreter->registers[
+                            NIBBLE_2(instruction)], 0);
                     interpreter->registers[NIBBLE_2(instruction)] >>= 1;
+                    interpreter->registers[0xF] = bit;
                     break;
                 }
                 // 0x8XY7: subtraction reverse, i.e. VX <- VY - VX, VF = no borrow
                 case 0x7: {
                     uint8_t first = interpreter->registers[NIBBLE_3(instruction)];
                     uint8_t second = interpreter->registers[NIBBLE_2(instruction)];
-                    interpreter->registers[0xF] = first > second;
                     interpreter->registers[NIBBLE_3(instruction)] = first - second;
+                    interpreter->registers[0xF] = first > second;
                     break;
                 }
                 // 0x8XY6 shift left: An ambiguous instruction.
@@ -177,15 +176,17 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                     interpreter->registers[NIBBLE_2(instruction)] =
                         interpreter->registers[NIBBLE_3(instruction)];
 #endif
-                    interpreter->registers[0xF] = GET_BIT(
-                            interpreter->registers[NIBBLE_2(instruction)], 7);
+                    uint8_t bit = GET_BIT(interpreter->registers[
+                            NIBBLE_2(instruction)], 0);
                     interpreter->registers[NIBBLE_2(instruction)] <<= 1;
+                    interpreter->registers[0xF] = bit;
                     break;
                 }
                 default:
                     fprintf(stderr, "Unknown instruction %4X.\n", instruction);
                     break;
             }
+            break;
         }
         // 0x9XY0: skip if not equal (registers), i.e. if(VX != VY) PC+=2
         case 0x9:
@@ -210,7 +211,8 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
             break;
         // 0xCXNN: random, i.e. VX <- rand[0, 255] & NN
         case 0xC:
-            interpreter->registers[NIBBLE_2(instruction)] = (rand() & 0xFF) & BYTE_2(instruction); 
+            interpreter->registers[NIBBLE_2(instruction)] = 
+                rand() & BYTE_2(instruction); 
             break;
         // 0xDXYN: display an N-byte sprite starting at M[I] at position (VX, VY).
         // This display is an XOR with the existing bit of the screen.
@@ -222,18 +224,19 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
             uint8_t height = NIBBLE_4(instruction);
 
             interpreter->registers[0xF] = draw_sprite(interpreter, x, y, height);
-            refresh = true;
             break;
         }
         // key: skip next instruction if key in V[N2] is being pressed, i.e. poll for input.
         case 0xE:
             // 0xEX9E: skip if key pressed, i.e. if(key_pressed(VX)) PC+=2
             if(BYTE_2(instruction) == 0x9E &&
-                    is_key_pressed(interpreter->registers[NIBBLE_2(instruction)])) {
+                    is_key_pressed(NIBBLE_2_BYTE(
+                    interpreter->registers[NIBBLE_2(instruction)]))) {
                 interpreter->program_counter += 2;
             // 0xEX9E: skip if not key pressed, i.e. if(!key_pressed(VX)) PC+=2
             } else if(BYTE_2(instruction) == 0xA1 &&
-                    !is_key_pressed(interpreter->registers[NIBBLE_2(instruction)])) {
+                    !is_key_pressed(NIBBLE_2_BYTE(
+                    interpreter->registers[NIBBLE_2(instruction)]))) {
                 interpreter->program_counter += 2;
             } else {
                 fprintf(stderr, "Unknown instruction %4X.\n", instruction);
@@ -277,14 +280,13 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                     interpreter->sound_timer = interpreter->registers[NIBBLE_2(instruction)];
                     break;
                 case 0x1E:
-#ifdef INDEX_ADD_OPTION
-                    interpreter->registers[0xF] = interpreter->index_register > 
-                        UINT8_MAX - interpreter->registers[NIBBLE_2(instruction)] ?
-                        0 : 1;
-#endif
                     interpreter->index_register += interpreter->registers[NIBBLE_2(instruction)];
+#ifdef INDEX_ADD_OBB_OPTION
+                    interpreter->registers[0xF] = interpreter->index_register > 0xFFF; 
+#endif
                     break;
                 // this looks at the lower nibble of VX for the character.
+                // All character fonts take up 5 bytes of memory.
                 case 0x29: {
                     uint8_t character = NIBBLE_2_BYTE(
                             interpreter->registers[NIBBLE_2(instruction)]);
@@ -306,7 +308,7 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                         interpreter->memory[interpreter->index_register + i] =
                             interpreter->registers[i];
                     }
-#ifdef INDEX_INC_MEMORY_OPTION
+#ifdef LOAD_STORE_MODIFY_INDEX_OPTION 
                     interpreter->index_register += NIBBLE_2(instruction);
 #endif
                     break;
@@ -316,7 +318,7 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
                         interpreter->registers[i] =
                             interpreter->memory[interpreter->index_register + i];
                     }
-#ifdef INDEX_INC_MEMORY_OPTION
+#ifdef LOAD_STORE_MODIFY_INDEX_OPTION 
                     interpreter->index_register += REGISTER_SIZE;
 #endif
                     break;
@@ -330,6 +332,4 @@ bool decode(struct interpreter* interpreter, uint16_t instruction) {
             fprintf(stderr, "Unknown instruction %4X.\n", instruction);
             break;
     }
-
-    return refresh;
 }

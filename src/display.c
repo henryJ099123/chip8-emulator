@@ -54,6 +54,8 @@ static SDL_Scancode codes[] = {
  **/
 void SDLCALL callback(void* userdata, SDL_AudioStream* stream, 
         int additional_amount, int total_amount) {
+    // unused parameters, done to suppress warnings.
+    (void) userdata, (void) total_amount;
     static uint32_t current_sample = 0;
     additional_amount /= sizeof(float);
 #define SAMPLE_SIZE 128
@@ -106,7 +108,7 @@ bool init_screen(struct screen* screen) {
     return true;
 }
 
-bool handle_event() {
+bool handle_event(void) {
     SDL_Event event;
     while(SDL_PollEvent(&event)) {
         switch(event.type) {
@@ -131,7 +133,7 @@ bool is_key_pressed(uint8_t num) {
 }
 
 // Returns 0xFF on failure.
-uint8_t any_key_pressed() {
+uint8_t any_key_pressed(void) {
     int length = 0;
     const bool* keys = SDL_GetKeyboardState(&length);
     for(uint8_t i = 0; i <= 0xF; i++) {

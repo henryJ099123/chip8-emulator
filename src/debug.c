@@ -1,3 +1,7 @@
+/**
+ * Author: Henry Jochaniewicz
+ * Date modified: 01/01/26
+ **/
 #include <stdint.h>
 #include <stdio.h>
 
@@ -56,7 +60,7 @@ void menu(FILE* fp) {
     fprintf(fp, "CHIP-8 DEBUGGER\n");
     fprintf(fp, "\th: help! (see this menu)\n");
     fprintf(fp, "\tn: fetch, decode, and execute next instruction\n");
-    fprintf(fp, "\t1: move time forward 1 step, i.e. update timers\n");
+    fprintf(fp, "\t1: move time forward 1 step, i.e. update timers and refresh screen\n");
     fprintf(fp, "\ti: see index register contents\n");
     fprintf(fp, "\tp: see program counter contents\n");
     fprintf(fp, "\tm: dump memory\n");
@@ -79,13 +83,11 @@ void debugger(struct interpreter* interpreter, struct screen* screen) {
                 break;
             case 'n':
                 instruction = fetch(interpreter);
-                if(decode(interpreter, instruction)) {
-                    draw_display(screen->renderer, interpreter->display);
-                }
+                decode(interpreter, instruction);
                 fprintf(stdout, "Performed instruction: %04X\n", instruction);
                 break;
             case '1':
-                update_timers(interpreter, screen);
+                update_internals(interpreter, screen);
                 break;
             case 'i':
                 fprintf(stdout, "I: %u (%04X)\n", interpreter->index_register, 
@@ -118,6 +120,7 @@ void debugger(struct interpreter* interpreter, struct screen* screen) {
             case 'q':
                 return;
         }
+        // clear stdin.
         for(char c = fgetc(stdin); c != '\n' && c != EOF; c = fgetc(stdin));
     }
 }

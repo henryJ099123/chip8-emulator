@@ -1,6 +1,6 @@
 /**
  * Author: Henry Jochaniewicz
- * Date modified: December 30, 2025
+ * Date modified: 01/01/26
  **/
 #ifndef __INTERPRET_H__
 #define __INTERPRET_H__
@@ -24,7 +24,7 @@ struct interpreter {
 };
 
 uint16_t fetch(struct interpreter* interpreter);
-bool decode(struct interpreter* interpreter, uint16_t instruction);
-void update_timers(struct interpreter* interpreter, struct screen* screen);
+void decode(struct interpreter* interpreter, uint16_t instruction);
+void update_internals(struct interpreter* interpreter, struct screen* screen);
 
 #endif

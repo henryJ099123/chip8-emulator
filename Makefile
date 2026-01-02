@@ -1,7 +1,7 @@
 CC= clang
 IFLAGS= -I /opt/homebrew/include -I include/
 LFLAGS= -L /opt/homebrew/lib -lSDL3
-CFLAGS= -Wall -Wextra
+CFLAGS= -Wall -Wextra -Wpedantic
 COMMON= include/settings.h
 SOURCES= chip8.c memory.c debug.c display.c interpret.c
 EXEC= chip8
@@ -22,5 +22,5 @@ build/:
 	mkdir -p build
 
 clean:
-	rm -f main
+	rm -f $(EXEC)
 	rm -rf build

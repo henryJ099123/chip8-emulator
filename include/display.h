@@ -20,7 +20,7 @@ struct screen {
 bool init_screen(struct screen* screen);
 bool handle_event(void);
 bool is_key_pressed(uint8_t num);
-uint8_t any_key_pressed();
+uint8_t any_key_pressed(void);
 void draw_display(SDL_Renderer* renderer, bool display[][WIDTH]);
 void clear_display(bool display[][WIDTH]);
 void destroy_screen(struct screen* screen);
