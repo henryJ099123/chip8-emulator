@@ -80,6 +80,29 @@ to make sure it works:
 ./chip8 examples/home.ch8
 ```
 
+## Keys
+
+You can interact with games by a keypad numbered 0 through F.
+
+```txt
+   1 2 3 C
+   4 5 6 D
+   7 8 9 E
+   A 0 B F
+```
+
+I've mapped these to the following scan codes on a QWERTY keyboard:
+
+```text
+   1 2 3 4
+   q w e r
+   a s d f
+   z x c v
+```
+
+As these are scan codes, they ought to be similar mappings on an AZERTY keyboard
+(e.g. on that keyboard, using `a` instead of `q` should do the same job).
+
 ## Debugger
 
 The emulator comes equipped with a debug mode. See
